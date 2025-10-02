@@ -71,7 +71,19 @@ require("lazy").setup({
       local capabilities = vim.lsp.protocol.make_client_capabilities()
 
       local servers = {
-        pyright = {},  -- Python
+        pyright = {
+          settings = {
+          python = {
+              analysis = {
+              autoImportCompletions = true, -- completion inserts needed imports
+              diagnosticMode = "workspace",
+            },
+            -- optional: explicitly point at interpreter if you don't start nvim from the venv
+            -- pythonPath = "/path/to/venv/bin/python",
+            -- extraPaths = { "src" }, -- if you have a src/ layout
+          },
+        },},
+
         clangd = {},   -- C/C++
         jdtls = {},    -- Java
         ts_ls = {},    -- JS/TS (adjust to tsserver if needed)
