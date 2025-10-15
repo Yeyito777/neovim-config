@@ -1,3 +1,4 @@
+vim.opt.termguicolors = true
 -- In ~/.config/nvim/init.lua
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -14,6 +15,36 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 require("lazy").setup({
+  -- Styled Marks
+  {
+    "chentoast/marks.nvim",
+    opts = {
+      default_mappings = true,
+      builtin_marks = { ".", "<", ">", "^" },
+      cyclic = true,
+      force_write_shada = true, -- forces persistence
+    },
+  },
+
+  -- Indentation
+  {
+    "lukas-reineke/indent-blankline.nvim",
+    main = "ibl",
+    opts = {
+      indent = {
+        char = "│",
+        highlight = { "IblIndent" },
+      },
+      scope = { enabled = false },  -- 👈 disables function/class scope underline
+    },
+    config = function(_, opts)
+      local hooks = require("ibl.hooks")
+      hooks.register(hooks.type.HIGHLIGHT_SETUP, function()
+        vim.api.nvim_set_hl(0, "IblIndent", { fg = "#090d35", nocombine = true })
+      end)
+      require("ibl").setup(opts)
+    end,
+  },
   -- Get lints
   {
     "mfussenegger/nvim-lint",
@@ -34,10 +65,7 @@ require("lazy").setup({
       -- Disable "line too long" (E501) from flake8
       do
         local flake8 = lint.linters.flake8
-        -- Keep the default args and just add our flag
         flake8.args = vim.list_extend(flake8.args or {}, { "--ignore=E501" })
-        -- Alternative: set a higher limit instead of ignoring:
-        -- flake8.args = vim.list_extend(flake8.args or {}, { "--max-line-length=120" })
       end
 
       vim.api.nvim_create_autocmd(
@@ -52,6 +80,42 @@ require("lazy").setup({
           end,
         }
       )
+    end,
+  },
+
+  ----------------------------------------------------------------
+  -- 🧩 Add Treesitter textobjects (yaf / yif for Python, etc.)
+  ----------------------------------------------------------------
+  {
+    "nvim-treesitter/nvim-treesitter-textobjects",
+    dependencies = { "nvim-treesitter/nvim-treesitter" },
+    config = function()
+      require("nvim-treesitter.configs").setup({
+        textobjects = {
+          select = {
+            enable = true,
+            lookahead = true,
+            keymaps = {
+              ["af"] = "@function.outer",
+              ["if"] = "@function.inner",
+              ["ac"] = "@class.outer",
+              ["ic"] = "@class.inner",
+            },
+          },
+          move = {
+            enable = true,
+            set_jumps = true,
+            goto_next_start = {
+              ["]m"] = "@function.outer",
+              ["]]"] = "@class.outer",
+            },
+            goto_previous_start = {
+              ["[m"] = "@function.outer",
+              ["[["] = "@class.outer",
+            },
+          },
+        },
+      })
     end,
   },
 
@@ -290,8 +354,10 @@ require("lazy").setup({
       vim.keymap.set("n", "<Tab>", "<cmd>FzfLua files<CR>", { desc = "Fuzzy find files" })
     end,
   },
-
 })
+
+-- local plugins
+require("persist_local_marks")
 
 -- Show diagnostics inline + keep gutter signs (we override inline below)
 vim.diagnostic.config({
@@ -378,9 +444,13 @@ vim.api.nvim_create_autocmd("DiagnosticChanged", {
     render_one_per_line(bufnr)
   end,
 })
+
 vim.api.nvim_create_autocmd({ "BufEnter", "InsertLeave", "ColorScheme" }, {
   callback = function() render_one_per_line(0) end,
 })
+
+-- Mark configuration
+vim.opt.signcolumn = "yes"
 -- File tree colors
 vim.api.nvim_set_hl(0, "FzfLuaBorder", { fg = "#1d9bf0" })
 vim.api.nvim_set_hl(0, "FzfLuaCursorLine", { bg = "#123466" })
@@ -429,5 +499,26 @@ vim.keymap.set("n", "<C-k>", ":m .-2<CR>==", { silent = true })
 vim.keymap.set("x", "<C-j>", ":m '>+1<CR>gv=gv", { silent = true })
 vim.keymap.set("x", "<C-k>", ":m '<-2<CR>gv=gv", { silent = true })
 
-vim.keymap.set({"n", "v"}, "y", '"+y')
-vim.keymap.set("n", "Y", '"+Y')
+vim.g.mapleader = " "
+vim.g.maplocalleader = " "
+
+vim.keymap.set({"n", "v"}, "<leader>y", '"+y', { desc = "Yank to system clipboard" })
+vim.keymap.set("n", "<leader>Y", '"+Y', { desc = "Yank line to system clipboard" })
+
+vim.keymap.set({"n", "v"}, "<leader>p", '"+p', { desc = "Paste from system clipboard" })
+vim.keymap.set({"n", "v"}, "<leader>P", '"+P', { desc = "Paste before from system clipboard" })
+
+vim.keymap.set("n", "<leader>j", function()
+  local mark = vim.fn.getcharstr()
+  if mark == " " then
+    vim.cmd("normal! ``zz")
+  else
+    -- Check if the mark actually exists and is valid
+    local ok = pcall(vim.cmd, "normal! `" .. mark .. "zz")
+    if not ok then
+      vim.notify("Mark '" .. mark .. "' is not set", vim.log.levels.WARN, { title = "Marks" })
+    end
+  end
+end, { desc = "Jump to mark or last position and center" })
+
+vim.keymap.set({"n", "x", "o"}, "<leader>l", "``zz", { desc = "Jump back and center" })
