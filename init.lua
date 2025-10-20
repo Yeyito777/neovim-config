@@ -513,10 +513,11 @@ vim.keymap.set("n", "<leader>j", function()
   if mark == " " then
     vim.cmd("normal! ``zz")
   else
-    -- Check if the mark actually exists and is valid
-    local ok = pcall(vim.cmd, "normal! `" .. mark .. "zz")
-    if not ok then
+    local pos = vim.fn.getpos("'" .. mark)
+    if pos[2] == 0 then
       vim.notify("Mark '" .. mark .. "' is not set", vim.log.levels.WARN, { title = "Marks" })
+    else
+      vim.cmd("normal! `" .. mark .. "zz")
     end
   end
 end, { desc = "Jump to mark or last position and center" })
