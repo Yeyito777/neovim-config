@@ -527,3 +527,36 @@ vim.keymap.set({"n", "x", "o"}, "<leader>l", "``zz", { desc = "Jump back and cen
 -- Extra configs
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
+
+-- == Keep cursor position.
+-- Save view (cursor, folds, scroll position, etc.) when leaving a buffer
+vim.api.nvim_create_autocmd("BufWinLeave", {
+  callback = function()
+    local ignore_ft = { "gitcommit", "gitrebase", "help", "nofile", "quickfix" }
+    if not vim.tbl_contains(ignore_ft, vim.bo.filetype) then
+      vim.cmd("silent! mkview")
+    end
+  end,
+})
+
+-- Load view (restore everything) when re-entering a buffer
+vim.api.nvim_create_autocmd("BufWinEnter", {
+  callback = function()
+    local ignore_ft = { "gitcommit", "gitrebase", "help", "nofile", "quickfix" }
+    if not vim.tbl_contains(ignore_ft, vim.bo.filetype) then
+      vim.cmd("silent! loadview")
+    end
+  end,
+})
+
+-- Also restore last known cursor position (based on mark `"`),
+-- in case view files don't exist yet (new files, etc.)
+vim.api.nvim_create_autocmd("BufReadPost", {
+  callback = function()
+    local mark = vim.api.nvim_buf_get_mark(0, '"')
+    local lcount = vim.api.nvim_buf_line_count(0)
+    if mark[1] > 0 and mark[1] <= lcount then
+      pcall(vim.api.nvim_win_set_cursor, 0, mark)
+    end
+  end,
+})
