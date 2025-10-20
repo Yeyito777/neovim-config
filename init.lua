@@ -523,3 +523,7 @@ vim.keymap.set("n", "<leader>j", function()
 end, { desc = "Jump to mark or last position and center" })
 
 vim.keymap.set({"n", "x", "o"}, "<leader>l", "``zz", { desc = "Jump back and center" })
+
+-- Extra configs
+vim.opt.ignorecase = true
+vim.opt.smartcase = true
