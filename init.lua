@@ -317,43 +317,6 @@ require("lazy").setup({
       })
     end,
   },
-  
-  -- File tree
-  {
-    "ibhagwan/fzf-lua",
-    dependencies = { "nvim-tree/nvim-web-devicons" },
-    config = function()
-      local fzf = require("fzf-lua")
-      fzf.setup({
-        -- 1) Tab navigation like Alt-Tab
-        keymap = {
-          fzf = {
-            ["tab"]       = "down",
-            ["shift-tab"] = "up",
-          },
-        },
-        -- 2) No multi-select → Enter always opens the highlighted row
-        fzf_opts = {
-          ["--no-multi"] = true,
-        },
-        -- 3) Remove glyph/devicons
-        defaults = {
-          file_icons  = false,
-          git_icons   = false,
-          color_icons = false,
-        },
-        -- 4) (Optional clarity) ensure Enter edits file
-        actions = {
-          files = {
-            ["enter"] = fzf.actions.file_edit,
-          },
-        },
-      })
-
-      -- open files picker with Tab in normal mode
-      vim.keymap.set("n", "<Tab>", "<cmd>FzfLua files<CR>", { desc = "Fuzzy find files" })
-    end,
-  },
 })
 
 -- local plugins
@@ -451,12 +414,6 @@ vim.api.nvim_create_autocmd({ "BufEnter", "InsertLeave", "ColorScheme" }, {
 
 -- Mark configuration
 vim.opt.signcolumn = "yes"
--- File tree colors
-vim.api.nvim_set_hl(0, "FzfLuaBorder", { fg = "#1d9bf0" })
-vim.api.nvim_set_hl(0, "FzfLuaCursorLine", { bg = "#123466" })
-vim.api.nvim_set_hl(0, "FzfLuaHeaderText", { fg = "#5fa8d3", bold = true })
-vim.api.nvim_set_hl(0, "FzfLuaHeaderBind", { fg = "#1d9bf0", bold = true })
-vim.api.nvim_set_hl(0, "FzfLuaHeaderText", { fg = "#5fa8d3", bold = true })
 -- Completion menu colors
 vim.api.nvim_set_hl(0, "Pmenu",     { bg = "#001f3f", fg = "#f1faee" })  -- popup background
 vim.api.nvim_set_hl(0, "PmenuSel",  { bg = "#00509e", fg = "#ffffff", bold = true }) -- selected item
@@ -508,7 +465,7 @@ vim.keymap.set("n", "<leader>Y", '"+Y', { desc = "Yank line to system clipboard"
 vim.keymap.set({"n", "v"}, "<leader>p", '"+p', { desc = "Paste from system clipboard" })
 vim.keymap.set({"n", "v"}, "<leader>P", '"+P', { desc = "Paste before from system clipboard" })
 
-vim.keymap.set("n", "<leader>j", function()
+local function jump_to_mark()
   local mark = vim.fn.getcharstr()
   if mark == " " then
     vim.cmd("normal! ``zz")
@@ -520,7 +477,11 @@ vim.keymap.set("n", "<leader>j", function()
       vim.cmd("normal! `" .. mark .. "zz")
     end
   end
-end, { desc = "Jump to mark or last position and center" })
+end
+
+vim.keymap.set({ "n", "v" }, "<leader>j", jump_to_mark, {
+  desc = "Jump to mark or last position and center"
+})
 
 vim.keymap.set({"n", "x", "o"}, "<leader>l", "``zz", { desc = "Jump back and center" })
 
