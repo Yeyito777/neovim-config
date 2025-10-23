@@ -521,3 +521,8 @@ vim.api.nvim_create_autocmd("BufReadPost", {
     end
   end,
 })
+
+
+vim.keymap.set('n', '<F1>', '<Nop>')
+vim.keymap.set('i', '<F1>', '<Nop>')
+vim.keymap.set('v', '<F1>', '<Nop>')
