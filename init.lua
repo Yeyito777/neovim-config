@@ -45,47 +45,8 @@ require("lazy").setup({
       require("ibl").setup(opts)
     end,
   },
-  -- Get lints
-  {
-    "mfussenegger/nvim-lint",
-    config = function()
-      local lint = require("lint")
 
-      lint.linters_by_ft = {
-        python = { "flake8" },
-        c = { "clangtidy" },
-        cpp = { "clangtidy" },
-        java = { "checkstyle" },
-        javascript = { "eslint_d" },
-        typescript = { "eslint_d" },
-        html = { "tidy" },
-        css = { "stylelint" },
-      }
-
-      -- Disable "line too long" (E501) from flake8
-      do
-        local flake8 = lint.linters.flake8
-        flake8.args = vim.list_extend(flake8.args or {}, { "--ignore=E501" })
-      end
-
-      vim.api.nvim_create_autocmd(
-        { "BufEnter", "TextChanged", "InsertLeave", "BufWritePost", "TextChangedI" },
-        {
-          callback = function(args)
-            local bufnr = args.buf or vim.api.nvim_get_current_buf()
-            lint.try_lint()
-            vim.schedule(function()
-              render_one_per_line(bufnr)
-            end)
-          end,
-        }
-      )
-    end,
-  },
-
-  ----------------------------------------------------------------
-  -- 🧩 Add Treesitter textobjects (yaf / yif for Python, etc.)
-  ----------------------------------------------------------------
+  -- Treesitter
   {
     "nvim-treesitter/nvim-treesitter-textobjects",
     dependencies = { "nvim-treesitter/nvim-treesitter" },
@@ -483,6 +444,14 @@ vim.keymap.set({ "n", "v" }, "<leader>j", jump_to_mark, {
   desc = "Jump to mark or last position and center"
 })
 
+local function clone_line()
+  local lnum = vim.fn.line(".")
+  local line = vim.fn.getline(lnum)
+  vim.fn.append(lnum, line)
+end
+
+vim.keymap.set({"n"}, "<leader>k", clone_line, { desc = "Clones the current line or selection below" })
+
 vim.keymap.set({"n", "x", "o"}, "<leader>l", "``zz", { desc = "Jump back and center" })
 
 -- Extra configs
@@ -526,3 +495,60 @@ vim.api.nvim_create_autocmd("BufReadPost", {
 vim.keymap.set('n', '<F1>', '<Nop>')
 vim.keymap.set('i', '<F1>', '<Nop>')
 vim.keymap.set('v', '<F1>', '<Nop>')
+
+-- Custom commands:
+
+local function add_to_lines(text, line1, line2)
+  local bufnr = vim.api.nvim_get_current_buf()
+
+  for i = line1 - 1, line2 - 1 do
+    local line = vim.api.nvim_buf_get_lines(bufnr, i, i + 1, false)[1]
+    if line then
+      -- Find first non-blank character
+      local first_nonblank = line:find("%S")
+      if first_nonblank then
+        -- Insert text before first non-blank
+        local new_line = line:sub(1, first_nonblank - 1) .. text .. line:sub(first_nonblank)
+        vim.api.nvim_buf_set_lines(bufnr, i, i + 1, false, { new_line })
+      else
+        -- Blank line, just leave it blank (or you could insert text if desired)
+        vim.api.nvim_buf_set_lines(bufnr, i, i + 1, false, { text })
+      end
+    end
+  end
+end
+
+-- Create :add command that works in normal and visual mode properly
+vim.api.nvim_create_user_command('PP', function(opts)
+  add_to_lines(opts.args, opts.line1, opts.line2)
+end, { nargs = 1, range = '%' })
+
+vim.keymap.set("n", "<C-_>", "gcc", {
+  remap = true,
+  desc = "Toggle comment for current line",
+})
+
+vim.keymap.set("x", "<C-_>", "gc", {
+  remap = true,
+  desc = "Toggle comment for selection",
+})
+
+-- When pressing enter on comments do not create a new comment
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "*",
+  callback = function()
+    -- Don't continue comments when pressing <CR> or using 'o' / 'O'
+    vim.opt_local.formatoptions:remove({ "r", "o" })
+  end,
+})
+
+-- Make F13 behave like <Esc>
+vim.keymap.set('i', '<F13>', '<Esc>', { noremap = true, silent = true })
+vim.keymap.set('v', '<F13>', '<Esc>', { noremap = true, silent = true })
+vim.keymap.set('x', '<F13>', '<Esc>', { noremap = true, silent = true })
+vim.keymap.set('c', '<F13>', '<Esc>', { noremap = true, silent = true })
+
+vim.keymap.set('i', '<Esc>', '', { noremap = true, silent = true })
+vim.keymap.set('v', '<Esc>', '', { noremap = true, silent = true })
+vim.keymap.set('x', '<Esc>', '', { noremap = true, silent = true })
+vim.keymap.set('c', '<Esc>', '', { noremap = true, silent = true })
