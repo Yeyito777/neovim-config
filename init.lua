@@ -542,13 +542,3 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
--- Make F13 behave like <Esc>
-vim.keymap.set('i', '<F13>', '<Esc>', { noremap = true, silent = true })
-vim.keymap.set('v', '<F13>', '<Esc>', { noremap = true, silent = true })
-vim.keymap.set('x', '<F13>', '<Esc>', { noremap = true, silent = true })
-vim.keymap.set('c', '<F13>', '<Esc>', { noremap = true, silent = true })
-
-vim.keymap.set('i', '<Esc>', '', { noremap = true, silent = true })
-vim.keymap.set('v', '<Esc>', '', { noremap = true, silent = true })
-vim.keymap.set('x', '<Esc>', '', { noremap = true, silent = true })
-vim.keymap.set('c', '<Esc>', '', { noremap = true, silent = true })
