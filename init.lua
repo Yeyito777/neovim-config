@@ -1,6 +1,5 @@
 vim.opt.termguicolors = true
--- In ~/.config/nvim/init.lua
--- Bootstrap lazy.nvim
+
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
   vim.fn.system({
@@ -8,25 +7,23 @@ if not vim.loop.fs_stat(lazypath) then
     "clone",
     "--filter=blob:none",
     "https://github.com/folke/lazy.nvim.git",
-    "--branch=stable", -- latest stable release
+    "--branch=stable",
     lazypath,
   })
 end
 vim.opt.rtp:prepend(lazypath)
 
 require("lazy").setup({
-  -- Styled Marks
   {
     "chentoast/marks.nvim",
     opts = {
       default_mappings = true,
       builtin_marks = { ".", "<", ">", "^" },
       cyclic = true,
-      force_write_shada = true, -- forces persistence
+      force_write_shada = true,
     },
   },
 
-  -- Indentation
   {
     "lukas-reineke/indent-blankline.nvim",
     main = "ibl",
@@ -35,7 +32,7 @@ require("lazy").setup({
         char = "│",
         highlight = { "IblIndent" },
       },
-      scope = { enabled = false },  -- 👈 disables function/class scope underline
+      scope = { enabled = false },
     },
     config = function(_, opts)
       local hooks = require("ibl.hooks")
@@ -46,7 +43,6 @@ require("lazy").setup({
     end,
   },
 
-  -- Treesitter
   {
     "nvim-treesitter/nvim-treesitter-textobjects",
     dependencies = { "nvim-treesitter/nvim-treesitter" },
@@ -67,11 +63,11 @@ require("lazy").setup({
             enable = true,
             set_jumps = true,
             goto_next_start = {
-              ["]m"] = "@function.outer",
+              ["<Space>u"] = "@function.outer",
               ["]]"] = "@class.outer",
             },
             goto_previous_start = {
-              ["[m"] = "@function.outer",
+              ["<Space>i"] = "@function.outer",
               ["[["] = "@class.outer",
             },
           },
@@ -80,7 +76,6 @@ require("lazy").setup({
     end,
   },
 
-  -- Get LSPs
   {
     "neovim/nvim-lspconfig",
     config = function()
@@ -88,8 +83,8 @@ require("lazy").setup({
         local opts = { buffer = bufnr, noremap = true, silent = true }
         vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
         vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
-        vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, opts)
-        vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, opts)
+        vim.keymap.set("n", "<leader>r", vim.lsp.buf.rename, opts)
+        vim.keymap.set("n", "<leader>c", vim.lsp.buf.code_action, opts)
         vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
       end
 
@@ -100,15 +95,11 @@ require("lazy").setup({
           settings = {
           python = {
               analysis = {
-              autoImportCompletions = true, -- completion inserts needed imports
+              autoImportCompletions = true,
               diagnosticMode = "workspace",
             },
-            -- optional: explicitly point at interpreter if you don't start nvim from the venv
-            -- pythonPath = "/path/to/venv/bin/python",
-            -- extraPaths = { "src" }, -- if you have a src/ layout
           },
         },},
-
         clangd = {},   -- C/C++
         jdtls = {},    -- Java
         ts_ls = {},    -- JS/TS (adjust to tsserver if needed)
@@ -137,7 +128,7 @@ require("lazy").setup({
   },
 
   -- Get syntax highlighting
-    {
+  {
     "nvim-treesitter/nvim-treesitter",
     build = ":TSUpdate",
     config = function()
@@ -152,7 +143,6 @@ require("lazy").setup({
     end,
   },
 
-  -- Get cool toolbar
   {
     "nvim-lualine/lualine.nvim",
     dependencies = { "nvim-tree/nvim-web-devicons" },
@@ -542,3 +532,4 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
+-- Convinience mappings that let me hop around
