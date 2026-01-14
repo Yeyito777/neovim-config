@@ -75,7 +75,6 @@ require("lazy").setup({
       })
     end,
   },
-
   {
     "neovim/nvim-lspconfig",
     config = function()
@@ -87,8 +86,12 @@ require("lazy").setup({
         vim.keymap.set("n", "<leader>c", vim.lsp.buf.code_action, opts)
         vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
       end
-
       local capabilities = vim.lsp.protocol.make_client_capabilities()
+      local rust_root = vim.fn.trim(vim.fn.system("cargo metadata --no-deps --format-version 1 | jq -r '.workspace_root'"))
+      if vim.v.shell_error ~= 0 or rust_root == "" then
+        vim.notify("cargo metadata failed, using cwd",vim.log.levels.WARN)
+        rust_root = vim.fn.getcwd()
+      end
 
       local servers = {
         pyright = {
@@ -101,10 +104,33 @@ require("lazy").setup({
           },
         },},
         clangd = {},   -- C/C++
-        jdtls = {},    -- Java
         ts_ls = {},    -- JS/TS (adjust to tsserver if needed)
         html = {},
         cssls = {},
+        rust_analyzer = {
+          settings = {
+            ["rust-analyzer"] = {
+              root_dir = rust_root,
+              cargo = {
+                allFeatures = true,
+                targetDir = rust_root.."/target",
+              },
+              checkOnSave = true,
+            },
+          },
+        },
+        lua_ls = {
+          settings = {
+            Lua = {
+              diagnostics = {
+                globals = { "vim" },
+              },
+              workspace = {
+                checkThirdParty = false,
+              },
+            },
+          },
+        }
       }
 
       local function lsp_setup(name, conf)
