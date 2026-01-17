@@ -84,7 +84,7 @@ require("lazy").setup({
         vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
         vim.keymap.set("n", "<leader>r", vim.lsp.buf.rename, opts)
         vim.keymap.set("n", "<leader>c", vim.lsp.buf.code_action, opts)
-        vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
+        vim.keymap.set("n", "<leader>g", vim.lsp.buf.references, opts)
       end
       local capabilities = vim.lsp.protocol.make_client_capabilities()
       local rust_root = vim.fn.trim(vim.fn.system("cargo metadata --no-deps --format-version 1 | jq -r '.workspace_root'"))
@@ -110,12 +110,14 @@ require("lazy").setup({
         rust_analyzer = {
           settings = {
             ["rust-analyzer"] = {
-              root_dir = rust_root,
               cargo = {
                 allFeatures = true,
                 targetDir = rust_root.."/target",
               },
               checkOnSave = true,
+              check = {
+                command = "clippy"
+              },
             },
           },
         },
@@ -161,7 +163,7 @@ require("lazy").setup({
       require("nvim-treesitter.configs").setup({
         ensure_installed = {
           "python", "c", "cpp", "java",
-          "javascript", "typescript", "html", "css", "lua"
+          "javascript", "typescript", "html", "css", "lua","markdown","markdown_inline","rust"
         },
         highlight = { enable = true },
         indent = { enable = true },
@@ -299,95 +301,43 @@ require("lazy").setup({
 -- local plugins
 require("persist_local_marks")
 
--- Show diagnostics inline + keep gutter signs (we override inline below)
+-- Show LSP diagnostics
 vim.diagnostic.config({
-  virtual_text = false,   -- disable built-in inline text
+  virtual_text = {
+    spacing = 0,
+    prefix = ">",
+  },
   signs = false,
   underline = true,
-  update_in_insert = true,
+  update_in_insert = false,
+  severity_sort = true,
 })
-
--- === Custom virtual text: one diagnostic per line with priority ===
-local ONE_PER_LINE_NS = vim.api.nvim_create_namespace("one_diag_per_line")
-
-local function lsp_namespaces_for_buf(bufnr)
-  local set = {}
-  for _, client in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
-    local ok, ns = pcall(vim.lsp.diagnostic.get_namespace, client.id)
-    if ok and ns then set[ns] = true end
-  end
-  return set
-end
-
-local function hl_from_severity(sev)
-  local s = vim.diagnostic.severity
-  if sev == s.ERROR then return "DiagnosticError"
-  elseif sev == s.WARN then return "DiagnosticWarn"
-  elseif sev == s.INFO then return "DiagnosticInfo"
-  else return "DiagnosticHint" end
-end
-
-function render_one_per_line(bufnr)
-  if not vim.api.nvim_buf_is_loaded(bufnr) then return end
-  vim.api.nvim_buf_clear_namespace(bufnr, ONE_PER_LINE_NS, 0, -1)
-
-  local all = vim.diagnostic.get(bufnr)
-  if #all == 0 then return end
-
-  local lsp_ns = lsp_namespaces_for_buf(bufnr)
-
-  local sev_rank = {
-    [vim.diagnostic.severity.ERROR] = 1,
-    [vim.diagnostic.severity.WARN]  = 2,
-    [vim.diagnostic.severity.INFO]  = 3,
-    [vim.diagnostic.severity.HINT]  = 4,
-  }
-
-  local best_by_line = {}
-  for _, d in ipairs(all) do
-    local line = d.lnum
-    local is_lsp = lsp_ns[d.namespace] and 0 or 1
-    local rank = { sev_rank[d.severity] or 9, is_lsp }
-
-    local cur = best_by_line[line]
-    if not cur then
-      best_by_line[line] = { diag = d, rank = rank }
-    else
-      local r = cur.rank
-      if (rank[1] < r[1]) or (rank[1] == r[1] and rank[2] < r[2]) then
-        best_by_line[line] = { diag = d, rank = rank }
-      end
-    end
-  end
-
-  for line, entry in pairs(best_by_line) do
-    -- make sure the line still exists (prevents out-of-range errors after deletes)
-    if line < vim.api.nvim_buf_line_count(bufnr) then
-      local d = entry.diag
-      local msg = d.message and d.message:gsub("%s+", " "):gsub("%.$", "") or ""
-      local hl = hl_from_severity(d.severity)
-
-      vim.api.nvim_buf_set_extmark(bufnr, ONE_PER_LINE_NS, line, -1, {
-        virt_text = { { "  " .. msg, hl } },
-        virt_text_pos = "eol",
-        hl_mode = "combine",
-        priority = 2048,
-      })
-    end
-  end
-
-end
-
-vim.api.nvim_create_autocmd("DiagnosticChanged", {
-  callback = function(args)
-    local bufnr = args.buf or (args.data and args.data.buf) or 0
-    render_one_per_line(bufnr)
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "rust",
+  callback = function()
+    vim.opt_local.formatoptions:remove({ "t", "c" })
   end,
 })
+vim.keymap.set("n", "gl", vim.diagnostic.open_float)
+vim.keymap.set("n", "]e", function()
+  vim.diagnostic.goto_next({
+    severity = vim.diagnostic.severity.ERROR,
+  })
+end, { desc = "Next error" })
 
-vim.api.nvim_create_autocmd({ "BufEnter", "InsertLeave", "ColorScheme" }, {
-  callback = function() render_one_per_line(0) end,
-})
+vim.keymap.set("n", "[e", function()
+  vim.diagnostic.goto_prev({
+    severity = vim.diagnostic.severity.ERROR,
+  })
+end, { desc = "Previous error" })
+
+vim.keymap.set("n", "]w", function()
+  vim.diagnostic.goto_next()
+end, { desc = "Next diagnostic" })
+
+vim.keymap.set("n", "[w", function()
+  vim.diagnostic.goto_prev()
+end, { desc = "Previous diagnostic" })
 
 -- Mark configuration
 vim.opt.signcolumn = "yes"
@@ -465,9 +415,7 @@ local function clone_line()
   local line = vim.fn.getline(lnum)
   vim.fn.append(lnum, line)
 end
-
 vim.keymap.set({"n"}, "<leader>k", clone_line, { desc = "Clones the current line or selection below" })
-
 vim.keymap.set({"n", "x", "o"}, "<leader>l", "``zz", { desc = "Jump back and center" })
 
 -- Extra configs
@@ -506,11 +454,6 @@ vim.api.nvim_create_autocmd("BufReadPost", {
     end
   end,
 })
-
-
-vim.keymap.set('n', '<F1>', '<Nop>')
-vim.keymap.set('i', '<F1>', '<Nop>')
-vim.keymap.set('v', '<F1>', '<Nop>')
 
 -- Custom commands:
 
@@ -558,4 +501,20 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
--- Convinience mappings that let me hop around
+-- ANSI ESCAPE COMMANDS
+local function ansi_cmd(name, code)
+  vim.api.nvim_create_user_command(name, function()
+    vim.api.nvim_put({ "\\x1b" .. "[" .. code .. "m" }, "c", true, true)
+  end, {})
+end
+
+ansi_cmd("Black",   "30")
+ansi_cmd("Red",     "31")
+ansi_cmd("Green",   "32")
+ansi_cmd("Yellow",  "33")
+ansi_cmd("Blue",    "34")
+ansi_cmd("Magenta", "35")
+ansi_cmd("Cyan",    "36")
+ansi_cmd("White",   "37")
+ansi_cmd("Bold",    "1")
+ansi_cmd("Reset",   "0")
