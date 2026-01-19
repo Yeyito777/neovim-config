@@ -162,7 +162,7 @@ require("lazy").setup({
     config = function()
       require("nvim-treesitter.configs").setup({
         ensure_installed = {
-          "python", "c", "cpp", "java",
+          "python", "c", "cpp", "java","bash",
           "javascript", "typescript", "html", "css", "lua","markdown","markdown_inline","rust"
         },
         highlight = { enable = true },
@@ -518,3 +518,40 @@ ansi_cmd("Cyan",    "36")
 ansi_cmd("White",   "37")
 ansi_cmd("Bold",    "1")
 ansi_cmd("Reset",   "0")
+
+-- Ctrl+1-9: Jump to (n*10)% of visible screen
+-- These use CSI u encoded sequences from st terminal
+local function jump_to_screen_percent(percent)
+  local win_height = vim.api.nvim_win_get_height(0)
+  local top_line = vim.fn.line("w0")
+  local target_offset = math.floor(win_height * percent / 100 + 0.5)
+  local target_line = top_line + target_offset - 1
+  local max_line = vim.fn.line("$")
+  target_line = math.min(target_line, max_line)
+  target_line = math.max(target_line, 1)
+  vim.api.nvim_win_set_cursor(0, { target_line, 0 })
+  vim.cmd("normal! ^")
+end
+
+-- Ctrl+1-9,0,-: Map F14-F24 keys (sent by st terminal)
+-- Ctrl+1 = 0%, Ctrl+2 = 10%, ..., Ctrl+9 = 80%, Ctrl+0 = 90%, Ctrl+- = 100%
+local fkeys = {"<F14>", "<F15>", "<F16>", "<F17>", "<F18>", "<F19>", "<F20>", "<F21>", "<F22>", "<F23>", "<F24>"}
+local percents = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
+for i, fkey in ipairs(fkeys) do
+  local pct = percents[i]
+  vim.keymap.set({"n", "v"}, fkey, function()
+    jump_to_screen_percent(pct)
+  end, { desc = string.format("Jump to %d%% of screen", pct) })
+end
+
+-- Cool separators:
+vim.api.nvim_create_user_command("Sep", function()
+  local left  = "/* ───────────────────────────────   "
+  local right = "   ─────────────────────────────────────────── */"
+  local line = left .. right
+  local row, _ = unpack(vim.api.nvim_win_get_cursor(0))
+  vim.api.nvim_buf_set_lines(0, row, row, false, { line })
+  local col = #left
+  vim.api.nvim_win_set_cursor(0, { row + 1, col })
+  vim.cmd("startinsert")
+end, {})
