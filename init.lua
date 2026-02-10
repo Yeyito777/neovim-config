@@ -418,6 +418,22 @@ end
 vim.keymap.set({"n"}, "<leader>k", clone_line, { desc = "Clones the current line or selection below" })
 vim.keymap.set({"n", "x", "o"}, "<leader>l", "``zz", { desc = "Jump back and center" })
 
+vim.keymap.set("n", "<leader>s", function()
+  local word = vim.fn.expand("<cword>")
+  if word == "" then return end
+  local escaped = vim.fn.escape(word, "/\\")
+  local keys = vim.api.nvim_replace_termcodes(":%s/\\<" .. escaped .. "\\>//gc<Left><Left><Left>", true, false, true)
+  vim.api.nvim_feedkeys(keys, "n", false)
+end, { desc = "Substitute word under cursor (confirm)" })
+
+vim.keymap.set("n", "<leader>S", function()
+  local word = vim.fn.expand("<cword>")
+  if word == "" then return end
+  local escaped = vim.fn.escape(word, "/\\")
+  local keys = vim.api.nvim_replace_termcodes(":%s/\\<" .. escaped .. "\\>//g<Left><Left>", true, false, true)
+  vim.api.nvim_feedkeys(keys, "n", false)
+end, { desc = "Substitute word under cursor (no confirm)" })
+
 -- Extra configs
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
@@ -524,13 +540,14 @@ ansi_cmd("Reset",   "0")
 local function jump_to_screen_percent(percent)
   local win_height = vim.api.nvim_win_get_height(0)
   local top_line = vim.fn.line("w0")
-  local target_offset = math.floor(win_height * percent / 100 + 0.5)
-  local target_line = top_line + target_offset - 1
+  local target_offset = math.floor((win_height - 1) * percent / 100 + 0.5)
+  local target_line = top_line + target_offset
   local max_line = vim.fn.line("$")
   target_line = math.min(target_line, max_line)
   target_line = math.max(target_line, 1)
-  vim.api.nvim_win_set_cursor(0, { target_line, 0 })
-  vim.cmd("normal! ^")
+  local view = vim.fn.winsaveview()
+  view.lnum = target_line
+  vim.fn.winrestview(view)
 end
 
 -- Ctrl+1-9,0,-: Map F14-F24 keys (sent by st terminal)
@@ -543,6 +560,14 @@ for i, fkey in ipairs(fkeys) do
     jump_to_screen_percent(pct)
   end, { desc = string.format("Jump to %d%% of screen", pct) })
 end
+
+-- F14-F24 in insert mode: special characters
+vim.keymap.set("i", "<F14>", "←", { desc = "Insert left arrow" })
+vim.keymap.set("i", "<F15>", "•", { desc = "Insert bullet point" })
+vim.keymap.set("i", "<F16>", "→", { desc = "Insert right arrow" })
+vim.keymap.set("i", "<F22>", "…", { desc = "Insert ellipsis" })
+vim.keymap.set("i", "<F23>", "–", { desc = "Insert en dash" })
+vim.keymap.set("i", "<F24>", "—", { desc = "Insert em dash" })
 
 -- Cool separators:
 vim.api.nvim_create_user_command("Sep", function()

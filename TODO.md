@@ -1,0 +1,5 @@
+- [ ] Think fo a way to autodocument K/gd with AI?
+- [ ] When I K on a function the window must stay up until I move out of the line
+- [ ] Test out github copilot or another similar copilot ai
+- [ ] Consider a window within neovim that I can use to talk to ai and it has access to the: project, current file, and selected lines (Look at the primagen's plugin actually that he said he was gonna release where he selects a function, it waits and then it does the thing)
+- [ ] Add the underscore _ text object so I can di_, da_, vi_, va_
