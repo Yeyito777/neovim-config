@@ -580,3 +580,21 @@ vim.api.nvim_create_user_command("Sep", function()
   vim.api.nvim_win_set_cursor(0, { row + 1, col })
   vim.cmd("startinsert")
 end, {})
+
+-- Auto-reload files changed outside of Neovim
+vim.o.autoread = true
+
+vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold" }, {
+  command = "checktime",
+})
+
+local reload_timer = vim.uv.new_timer()
+reload_timer:start(500, 500, vim.schedule_wrap(function()
+  if vim.api.nvim_get_mode().mode == "n" then
+    local old_tick = vim.b.changedtick
+    vim.cmd("silent! checktime")
+    if vim.b.changedtick ~= old_tick then
+      vim.notify("File changed on disk. Buffer reloaded.", vim.log.levels.WARN)
+    end
+  end
+end))
