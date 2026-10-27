@@ -498,6 +498,7 @@ require("lazy").setup({
 })
 
 -- local plugins
+require("treesitter_compat").setup()
 require("persist_local_marks")
 
 -- Show LSP diagnostics
@@ -557,6 +558,10 @@ set_hl(0, "Type",       { fg = "#48cae4" })
 set_hl(0, "Special",    { fg = "#c77dff" })
 set_hl(0, "Directory",  { fg = "#5fa8d3" })
 set_hl(0, "Search",     { fg = "#00050f", bg = "#ffe066" })
+-- Hide the separator shown above the hit-enter/message prompt (e.g. E37/E162 warnings).
+-- Neovim 0.9+ always reserves this row for scrolled messages, so make it blend in.
+vim.opt.fillchars:append({ msgsep = " " })
+set_hl(0, "MsgSeparator", { fg = "#00050f", bg = "#00050f" })
 vim.opt.number = true
 vim.opt.relativenumber = true
 
@@ -585,11 +590,20 @@ vim.keymap.set("x", "<C-k>", ":m '<-2<CR>gv=gv", { silent = true })
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
-vim.keymap.set({"n", "v"}, "<leader>y", '"+y', { desc = "Yank to system clipboard" })
-vim.keymap.set("n", "<leader>Y", '"+Y', { desc = "Yank line to system clipboard" })
+-- Clipboard/register swap:
+--   y/p operate on the system clipboard.
+--   <leader>y/<leader>p operate on an internal Vim register.
+vim.keymap.set({"n", "v"}, "y", '"+y', { desc = "Yank to system clipboard" })
+vim.keymap.set("n", "Y", '"+Y', { desc = "Yank line to system clipboard" })
 
-vim.keymap.set({"n", "v"}, "<leader>p", '"+p', { desc = "Paste from system clipboard" })
-vim.keymap.set({"n", "v"}, "<leader>P", '"+P', { desc = "Paste before from system clipboard" })
+vim.keymap.set({"n", "v"}, "p", '"+p', { desc = "Paste from system clipboard" })
+vim.keymap.set({"n", "v"}, "P", '"+P', { desc = "Paste before from system clipboard" })
+
+vim.keymap.set({"n", "v"}, "<leader>y", '"zy', { desc = "Yank to internal Vim register" })
+vim.keymap.set("n", "<leader>Y", '"zY', { desc = "Yank line to internal Vim register" })
+
+vim.keymap.set({"n", "v"}, "<leader>p", '"zp', { desc = "Paste from internal Vim register" })
+vim.keymap.set({"n", "v"}, "<leader>P", '"zP', { desc = "Paste before from internal Vim register" })
 
 local function jump_to_mark()
   local mark = vim.fn.getcharstr()
@@ -760,6 +774,9 @@ for i, fkey in ipairs(fkeys) do
   end, { desc = string.format("Jump to %d%% of screen", pct) })
 end
 
+-- Insert mode convenience bindings
+vim.keymap.set("i", "<C-l>", "<CR>", { desc = "Insert newline" })
+
 -- F14-F24 in insert mode: special characters
 vim.keymap.set("i", "<F14>", "←", { desc = "Insert left arrow" })
 vim.keymap.set("i", "<F15>", "•", { desc = "Insert bullet point" })
@@ -797,3 +814,6 @@ reload_timer:start(500, 500, vim.schedule_wrap(function()
     end
   end
 end))
+
+-- Markdown links with native visible-width wrapping; Space m e / Space m a.
+require("markdown_links").setup()
