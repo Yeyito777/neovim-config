@@ -31,7 +31,7 @@ concealing link syntax, so individual expansion works. Other Markdown punctuatio
 stays visible, as in the original configuration. Keep this override in mind when
 upgrading the Markdown parser/query package.
 
-Original init.lua backup: backups/native-wrap-20260914-121046/init.lua
+Original init.lua backup: backups/markdown-links-20260914-122449/init.lua
 
 Restart Neovim to load everything. For an already-running Neovim, use:
 
@@ -40,3 +40,6 @@ Restart Neovim to load everything. For an already-running Neovim, use:
 If that session has already cached its old Tree-sitter highlighting query, restart
 Neovim instead. Do not source all of init.lua repeatedly (unrelated plugins are not
 necessarily reload-safe).
+
+Native visible-width wrapping is now installed on this Mac and Whale. See
+NATIVE_WRAP.md for custom-build locations, rebuilding, and rollback.

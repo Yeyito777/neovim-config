@@ -295,13 +295,15 @@ require("lazy").setup({
       local servers = {
         pyright = {
           settings = {
-          python = {
+            python = {
               analysis = {
-              autoImportCompletions = true,
-              diagnosticMode = "workspace",
+                autoImportCompletions = true,
+                diagnosticMode = "openFilesOnly",
+                typeCheckingMode = "basic",
+              },
             },
           },
-        },},
+        },
         clangd = {},   -- C/C++
         ts_ls = {},    -- JS/TS (adjust to tsserver if needed)
         html = {},
@@ -499,6 +501,7 @@ require("lazy").setup({
 
 -- local plugins
 require("treesitter_compat").setup()
+require("markdown_refresh").setup()
 require("persist_local_marks")
 
 -- Show LSP diagnostics
@@ -570,6 +573,7 @@ set_hl(0, "LineNr", { fg = "#457b9d", bg = "#00050f" })
 set_hl(0, "CursorLineNr", { fg = "#48cae4", bg = "#00050f", bold = true })
 set_hl(0, "CursorLine",    { bg = "#090d35" })
 vim.opt.tabstop = 2
+vim.opt.softtabstop = 2
 vim.opt.shiftwidth = 2
 vim.opt.expandtab = true
 
@@ -589,9 +593,11 @@ vim.keymap.set("x", "<C-k>", ":m '<-2<CR>gv=gv", { silent = true })
 
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
+-- Keep deletes/changes on Vim's internal registers, not the system clipboard.
+vim.opt.clipboard = ""
 
--- Clipboard/register swap:
---   y/p operate on the system clipboard.
+-- Explicit clipboard/register mappings:
+--   y/Y copy to the system clipboard; p/P paste from it.
 --   <leader>y/<leader>p operate on an internal Vim register.
 vim.keymap.set({"n", "v"}, "y", '"+y', { desc = "Yank to system clipboard" })
 vim.keymap.set("n", "Y", '"+Y', { desc = "Yank line to system clipboard" })
@@ -630,6 +636,8 @@ local function clone_line()
 end
 vim.keymap.set({"n"}, "<leader>k", clone_line, { desc = "Clones the current line or selection below" })
 vim.keymap.set({"n", "x", "o"}, "<leader>l", "``zz", { desc = "Jump back and center" })
+
+require("strikethrough").setup()
 
 vim.keymap.set("n", "<leader>s", function()
   local word = vim.fn.expand("<cword>")
@@ -711,15 +719,19 @@ vim.api.nvim_create_user_command('PP', function(opts)
   add_to_lines(opts.args, opts.line1, opts.line2)
 end, { nargs = 1, range = '%' })
 
-vim.keymap.set("n", "<C-_>", "gcc", {
-  remap = true,
-  desc = "Toggle comment for current line",
-})
+-- Modern terminal keyboard protocols distinguish Ctrl+/ from Ctrl+_.
+-- Keep the legacy keycode too for terminals that send ASCII 0x1f.
+for _, key in ipairs({ "<C-/>", "<C-_>" }) do
+  vim.keymap.set("n", key, "gcc", {
+    remap = true,
+    desc = "Toggle comment for current line",
+  })
 
-vim.keymap.set("x", "<C-_>", "gc", {
-  remap = true,
-  desc = "Toggle comment for selection",
-})
+  vim.keymap.set("x", key, "gc", {
+    remap = true,
+    desc = "Toggle comment for selection",
+  })
+end
 
 -- When pressing enter on comments do not create a new comment
 vim.api.nvim_create_autocmd("FileType", {
@@ -797,6 +809,50 @@ vim.api.nvim_create_user_command("Sep", function()
   vim.cmd("startinsert")
 end, {})
 
+-- Compile the current LaTeX file, keep diagnostics if it fails, and remove
+-- auxiliary files after a successful build.
+vim.api.nvim_create_user_command("LatexBuild", function()
+  local tex_file = vim.fn.expand("%:p")
+  if tex_file == "" or vim.fn.fnamemodify(tex_file, ":e") ~= "tex" then
+    vim.notify("LatexBuild must be run from a .tex file", vim.log.levels.ERROR, { title = "LaTeX" })
+    return
+  end
+
+  vim.cmd("write")
+
+  local tex_dir = vim.fn.fnamemodify(tex_file, ":h")
+  local tex_name = vim.fn.fnamemodify(tex_file, ":t")
+  local pdf_file = vim.fn.fnamemodify(tex_file, ":r") .. ".pdf"
+  local build = vim.system({
+    "latexmk",
+    "-pdf",
+    "-interaction=nonstopmode",
+    "-halt-on-error",
+    tex_name,
+  }, { cwd = tex_dir, text = true }):wait()
+
+  if build.code ~= 0 then
+    local details = vim.trim((build.stdout or "") .. "\n" .. (build.stderr or ""))
+    vim.notify(details ~= "" and details or "LaTeX build failed", vim.log.levels.ERROR, { title = "LaTeX" })
+    return
+  end
+
+  local cleanup = vim.system({ "latexmk", "-c", tex_name }, {
+    cwd = tex_dir,
+    text = true,
+  }):wait()
+
+  if cleanup.code ~= 0 then
+    vim.notify("PDF built, but auxiliary-file cleanup failed", vim.log.levels.WARN, { title = "LaTeX" })
+  else
+    vim.notify("Built " .. pdf_file, vim.log.levels.INFO, { title = "LaTeX" })
+  end
+
+  if vim.fn.filereadable(pdf_file) == 1 then
+    vim.ui.open(pdf_file)
+  end
+end, { desc = "Build LaTeX, clean auxiliaries, and open the PDF" })
+
 -- Auto-reload files changed outside of Neovim
 vim.o.autoread = true
 
@@ -815,5 +871,5 @@ reload_timer:start(500, 500, vim.schedule_wrap(function()
   end
 end))
 
--- Markdown links with native visible-width wrapping; Space m e / Space m a.
+-- Markdown links: colored labels, click/Enter to open, Space m e / Space m a to edit.
 require("markdown_links").setup()
